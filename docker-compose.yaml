@@ -1,0 +1,17 @@
+
+services:
+  db:
+    image: postgres:18
+    container_name: budget-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: budget_tracker
+      POSTGRES_USER: orion
+      POSTGRES_PASSWORD: password
+    ports:
+      - "127.0.0.1:5332:5432"
+    volumes:
+      - budget_tracker_data:/var/lib/postgresql
+
+volumes:
+  budget_tracker_data:

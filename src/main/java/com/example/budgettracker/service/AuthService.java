@@ -1,0 +1,48 @@
+package com.example.budgettracker.service;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.example.budgettracker.dto.request.SignupRequest;
+import com.example.budgettracker.dto.response.SignupResponse;
+import com.example.budgettracker.entity.User;
+import com.example.budgettracker.repository.UserRepository;
+
+@Service
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Transactional
+    public SignupResponse signup(SignupRequest request) {
+        
+        String email = request.email().trim().toLowerCase(java.util.Locale.ROOT);
+
+        if (userRepository.existsByEmail(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "An account with this email already exists");
+        }
+
+        User user = new User(request.fullName().trim(), email, request.phoneNumber(), request.preferredContactMethod(), passwordEncoder.encode(request.password()));
+
+        User savedUser = userRepository.save(user);
+
+        return new SignupResponse(
+            savedUser.getId(),
+            savedUser.getFullName(),
+            savedUser.getEmail(),
+            savedUser.getPhoneNumber(),
+            savedUser.getPreferredContactMethod(),
+            savedUser.getCreatedAt(),
+            "Account created successfully"
+        );
+    }
+}
