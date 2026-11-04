@@ -12,7 +12,7 @@
   <a href="https://maven.apache.org/"><img alt="Built with Maven" src="https://shieldcn.dev/badge/Built_with-Maven-C71A36?logo=apachemaven&variant=secondary" /></a>
 </p>
 
-Budget Tracker is a Spring Boot REST API for managing personal finances. It currently handles user registration with request validation, password hashing, and PostgreSQL persistence.
+Budget Tracker is a Spring Boot REST API for managing personal finances. It currently handles user registration with request validation, password hashing, PostgreSQL persistence, and JWT authentication — a signed access token is issued immediately on signup (auto-login).
 
 ## Features
 
@@ -20,9 +20,10 @@ Budget Tracker is a Spring Boot REST API for managing personal finances. It curr
 - Bean Validation for every request field with field-level error messages
 - Duplicate-email detection with a `409 Conflict` response
 - BCrypt password hashing — plain-text passwords are never stored
+- JWT (HMAC) access token issued on registration and returned in the response
+- Stateless bearer-token authentication filter protecting every non-public route
 - Centralized JSON error responses for validation, conflict, and HTTP status errors
 - PostgreSQL persistence through Spring Data JPA
-- Stateless Spring Security configuration
 
 ## Tech Stack
 
@@ -32,8 +33,9 @@ Budget Tracker is a Spring Boot REST API for managing personal finances. It curr
 | Framework | Spring Boot 4.1.2 |
 | Web | Spring MVC (`spring-boot-starter-webmvc`) |
 | Persistence | Spring Data JPA / Hibernate |
-| Database | PostgreSQL 18 |
+| Database | PostgreSQL 18 (Docker Compose) |
 | Security | Spring Security + BCrypt |
+| Auth tokens | JJWT 0.13.0 (HMAC-signed JWTs) |
 | Validation | Jakarta Bean Validation |
 | Build | Maven (wrapper included) |
 
@@ -61,8 +63,11 @@ src/main/java/com/example/budgettracker
 │   └── GlobalExceptionHandler.java # Maps exceptions to JSON responses
 ├── repository
 │   └── UserRepository.java         # JPA repository
+├── security
+│   └── JwtAuthFilter.java          # Bearer-token validation filter
 └── service
-    └── AuthService.java            # Signup business logic
+    ├── AuthService.java            # Signup business logic
+    └── JwtService.java             # JWT generation and parsing
 ```
 
 ### Request flow
@@ -73,8 +78,15 @@ AuthController
       └── AuthService
           ├── checks UserRepository.existsByEmail(...)
           ├── hashes the password with PasswordEncoder
-          └── saves the User entity
-              └── returns SignupResponse
+          ├── saves the User entity
+          ├── generates a JWT with JwtService
+          └── returns SignupResponse (includes the token)
+
+Every other request
+  └── JwtAuthFilter
+      ├── reads the Authorization: Bearer <token> header
+      ├── validates the signature and expiry via JwtService
+      └── populates the SecurityContext on success
 
 Errors from any layer
   └── GlobalExceptionHandler → ApiErrorResponse
@@ -89,15 +101,25 @@ Errors from any layer
 
 The Maven wrapper is included, so a separate Maven installation is not required.
 
-### 1. Start the database
+### 1. Configure the JWT secret
+
+Create a `.env` file in the project root (it is gitignored) with a base64 secret of at least 32 bytes:
+
+```bash
+echo "JWT_SECRET=$(head -c 48 /dev/urandom | base64)" > .env
+```
+
+Spring loads it via `spring.config.import=optional:file:.env[.properties]`. A real environment variable (`export JWT_SECRET=...`) works too and takes precedence.
+
+### 2. Start the database
 
 ```bash
 docker compose up -d
 ```
 
-This starts PostgreSQL 18 on `localhost:5332` with the database `budget_tracker`.
+This starts PostgreSQL 18 on `localhost:5332` (host port mapped to the container's 5432) with the database `budget_tracker`. Port 5332 is used deliberately so the container does not collide with a system PostgreSQL on the default 5432.
 
-### 2. Run the application
+### 3. Run the application
 
 ```bash
 ./mvnw spring-boot:run
@@ -116,9 +138,13 @@ spring.datasource.password=password
 
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
+
+spring.config.import=optional:file:.env[.properties]
+app.jwt.secret=${JWT_SECRET}
+app.jwt.expiration-minutes=30
 ```
 
-These values match `docker-compose.yaml`. Change both together if you use a different database setup.
+The datasource values match `docker-compose.yaml`. The JWT secret is **never committed** — it is resolved from `JWT_SECRET` in `.env` or the environment. Change datasource settings in both files together if you use a different database setup.
 
 ## API Reference
 
@@ -158,9 +184,27 @@ Creates a new account.
   "phoneNumber": "+2348012345678",
   "preferredContactMethod": "WHATSAPP",
   "createdAt": "2026-10-30T21:00:00Z",
+  "tokenType": "Bearer",
+  "token": "eyJhbGciOiJIUzM4NCJ9...",
+  "expiresIn": 1800,
   "message": "Account created successfully"
 }
 ```
+
+The response includes a signed JWT so the client is logged in immediately (auto-login pattern). Claims: `sub` (user id), `email`, `iat`, `exp`. The token expires after `app.jwt.expiration-minutes` (30 by default).
+
+> Note: if email verification is added later, the token should no longer be issued at signup — an unverified user must not receive an authenticated session.
+
+### Authenticating subsequent requests
+
+Send the token as a bearer header on every request to a protected route:
+
+```bash
+curl http://localhost:8080/api/v1/... \
+  -H "Authorization: Bearer <token>"
+```
+
+`JwtAuthFilter` validates the signature and expiry, then sets the security context. Missing or invalid tokens are rejected before reaching any controller.
 
 **Validation error — `400 Bad Request`**
 
@@ -194,8 +238,10 @@ Errors handled by `GlobalExceptionHandler` use the same `ApiErrorResponse` shape
 ## Security Notes
 
 - Sessions are stateless and CSRF is disabled because the API does not use browser sessions.
-- Only `POST /api/v1/auth/signup` is public; every other route requires authentication.
-- Spring Boot logs a generated security password at startup because no custom `UserDetailsService` exists yet. It does not affect the signup flow and will disappear once real authentication is added.
+- Only `POST /api/v1/auth/signup` is public; every other route requires a valid bearer token.
+- JWTs are signed with HMAC (algorithm selected by key size, HS384 for the recommended 48-byte secret). The secret must decode to at least 256 bits or startup fails with `WeakKeyException`.
+- Tokens are short-lived (30 minutes) and there is no refresh mechanism yet — add refresh tokens before relying on this in production.
+- The signing secret lives only in `.env` / the environment and is never committed.
 - `spring.jpa.hibernate.ddl-auto=update` is convenient for development. Use database migrations (for example, Flyway or Liquibase) before running in production.
 
 ## Testing

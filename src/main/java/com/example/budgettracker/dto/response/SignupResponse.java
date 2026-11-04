@@ -11,5 +11,8 @@ public record SignupResponse(
     String phoneNumber,
     ContactMethod preferredContactMethod,
     Instant createdAt,
+    String tokenType,
+    String token,
+    long expiresIn,
     String message
 ) {}

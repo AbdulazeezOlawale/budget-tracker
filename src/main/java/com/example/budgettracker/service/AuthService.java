@@ -1,5 +1,6 @@
 package com.example.budgettracker.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,11 +17,16 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final long expirationMinutes;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService, @Value("${app.jwt.expiration-minutes}") long expirationMinutes) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.expirationMinutes = expirationMinutes;
     }
+
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
@@ -35,6 +41,8 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
+        String token = jwtService.generatedToken(savedUser);
+
         return new SignupResponse(
             savedUser.getId(),
             savedUser.getFullName(),
@@ -42,6 +50,9 @@ public class AuthService {
             savedUser.getPhoneNumber(),
             savedUser.getPreferredContactMethod(),
             savedUser.getCreatedAt(),
+            "Bearer",
+            token,
+            expirationMinutes * 60,
             "Account created successfully"
         );
     }
