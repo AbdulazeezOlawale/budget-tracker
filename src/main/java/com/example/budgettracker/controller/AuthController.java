@@ -3,7 +3,9 @@ package com.example.budgettracker.controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.budgettracker.dto.request.LoginRequest;
 import com.example.budgettracker.dto.request.SignupRequest;
+import com.example.budgettracker.dto.response.LoginResponse;
 import com.example.budgettracker.dto.response.SignupResponse;
 import com.example.budgettracker.service.AuthService;
 
@@ -29,4 +31,11 @@ public class AuthController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        LoginResponse response = authService.login(request);        
+        return ResponseEntity.ok(response);
+    }
+    
 }
