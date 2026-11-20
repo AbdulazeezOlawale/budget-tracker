@@ -1,4 +1,16 @@
-# Budget Tracker
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/header/graph.svg?title=Budget+Tracker&subtitle=Personal+finance+REST+API+%C2%B7+Spring+Boot+4+%C2%B7+Java+21+%C2%B7+PostgreSQL&logo=java&align=left&mode=dark" />
+    <img alt="Budget Tracker — Personal finance REST API" src="https://shieldcn.dev/header/graph.svg?title=Budget+Tracker&subtitle=Personal+finance+REST+API+%C2%B7+Spring+Boot+4+%C2%B7+Java+21+%C2%B7+PostgreSQL&logo=java&align=left&mode=light" />
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/AbdulazeezOlawale/budget-tracker/stargazers"><img alt="GitHub stars" src="https://shieldcn.dev/github/stars/AbdulazeezOlawale/budget-tracker.svg?variant=secondary" /></a>
+  <a href="https://github.com/AbdulazeezOlawale/budget-tracker/network/members"><img alt="GitHub forks" src="https://shieldcn.dev/github/forks/AbdulazeezOlawale/budget-tracker.svg?variant=secondary" /></a>
+  <a href="https://github.com/AbdulazeezOlawale/budget-tracker/graphs/contributors"><img alt="Contributors" src="https://shieldcn.dev/github/contributors/AbdulazeezOlawale/budget-tracker.svg?variant=secondary" /></a>
+  <a href="https://github.com/AbdulazeezOlawale/budget-tracker/commits/main"><img alt="Last commit" src="https://shieldcn.dev/github/last-commit/AbdulazeezOlawale/budget-tracker.svg?variant=secondary" /></a>
+</p>
 
 A personal finance REST API built with Spring Boot 4, Java 21 and PostgreSQL.
 This phase of the project implements the complete, production-hardened
